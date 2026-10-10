@@ -1,0 +1,78 @@
+---
+title: "Decomposition of US Candy Production"
+author: "brp107@scarletmail.rutgers.edu"
+date: "10/7/2026"
+output: html_document
+---
+
+
+```{r}
+library(fpp2)
+
+candy <- read.csv("candy.csv")
+candy_ts <- ts(candy$IPG3113N, start = c(1972, 1), frequency = 12)
+head(candy_ts)
+plot(candy_ts)
+```
+
+**Explanation:** The plot shows two patterns that decomposition will separate. There is a long-run movement in the level, rising until about 2001, dropping in the late 2000s, recovering, and falling again at the end. There is a repeating yearly pattern with a peak every fall. The lowest value in the series is 44.22 in March 1975 and the highest is 125.50 in October 2021. Decomposition splits the series into its parts so each one can be studied on its own.
+
+## STL Decomposition
+
+```{r}
+stl_decomp <- stl(candy_ts,s.window ="periodic")
+plot(stl_decomp)
+attributes(stl_decomp)
+```
+
+**Explanation:** This splits the series into three components that add back up to the original data (an additive model).
+
+* **data:** The original series.
+* **seasonal:** This is the pattern that repeats every year.The seasonal pattern is identical in every year. Production is highest in October, November, and December and lowest from April through July. The climb starts in August and September, ahead of Halloween and the winter holidays, and production drops back in January.
+* **trend:** The underlying growth and/or decline with seasonality is removed. The trend falls to a low of about 60 in early 1975, rises to a peak of about 107 in early 2001, and drops sharply to about 80 in early 2009. It then recovers to about 103 by 2019, dips to about 95 in early 2020, and reaches about 106 at the start of 2022. After that it declines, and it falls quickly from about 100 in early 2025 to about 85 in August 2026. The dips line up with the mid-1970s recession, the 2007 to 2009 recession, and the 2020 pandemic.
+* **remainder:** The irregular part is left over. This shows the data without any leading factors. It shows mostly the raw data.
+
+**Additive or multiplicative?** Here the additive model fits the seasonal swings as they stay roughly the same size as te level changes. The gap between the highest and lowest month of a year averaged about 36 points in the 1970s, when the level was around 73, and about 24 points in 2020 to 2025, when the level was around 100. The seasonal swing did not grow as the level rose, so an additive model is appropriate.
+
+
+## Seasonal Adjustment
+
+```{r}
+seasadj(stl_decomp)
+plot(candy_ts)
+lines(seasadj(stl_decomp), col="Red")
+```
+
+**Explanation:** This removes the seasonal component from the data, leaving the trend plus the remainder of cyclical and irregular. For example, August is normally below the trend, so the seasonally adjusted value is higher.
+
+In the plot, the black line is the original data and the red line is the seasonally adjusted series. The red line swings far less because the yearly holiday peaks and spring dips are gone. This makes it easier to see real changes in production, such as the drops around 2008 to 2009 and in 2020, without confusing them with the normal seasonal pattern. The red line is still jagged because the remainder is left in.
+
+
+## Forecast
+
+```{r}
+f_stl <- forecast(stl_decomp)
+f_stl <- forecast(stl_decomp,h=15)
+f_stl
+plot(f_stl)
+```
+
+**Explanation:** Forecast on an STL object forecasts the seasonally adjusted series and then adds the seasonal pattern back in. By default it forecasts 24 months. With h=15 it forecasts 15 months, from September 2026 to November 2027.
+
+Simple exponential smoothing has no trend, so the forecast assumes the level stays where it was in mid-2026, which is the lowest in more than a decade. That is why the forecast peaks are below every actual fall peak of the last ten years. If the recent drop turns out to be temporary, this forecast will be too low. If production keeps falling, it will be too high. The most recent months are also preliminary estimates that the Federal Reserve may revise.
+
+
+## Decomposition
+
+```{r}
+decomp_candy <- decompose(candy_ts)
+attributes(decomp_candy)
+seasadj(decomp_candy)
+```
+
+**Explanation:** This is another way to split the series using moving averages. The results are close to STL. The monthly seasonal values have nearly the same peak in November and the same low in May. The seasonally adjusted values are also nearly identical.
+
+
+## Summary
+
+Decomposition shows that candy production is driven mainly by two things. The first being a long-run trend that follows the economy. It grew from the mid-1970s to about 2001, dropped sharply around the 2007 to 2009 recession, recovered through the 2010s, dipped in 2020, and has been falling since 2022. The second is that a strong and stable seasonal pattern is tied to the holiday calendar. The irregular component is small. An additive model fits the data because the seasonal swings did not grow as the level rose.
